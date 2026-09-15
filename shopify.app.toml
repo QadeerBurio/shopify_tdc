@@ -1,0 +1,47 @@
+# This file tells Shopify what your app is called, what permissions
+# it needs, and what events it wants to be notified about.
+# Fill in client_id and application_url after you register the app
+# in partners.shopify.com.
+
+client_id = "f35cdba51cf047b59799f1f2d8551c19"
+name = "The Deft Crew"
+handle = "the-deft-crew"
+application_url = "https://admin.shopify.com/?organization_id=235815337&no_redirect=true&redirect=/oauth/redirect_from_developer_dashboard?client_id%3Df35cdba51cf047b59799f1f2d8551c19"
+embedded = true
+
+[build]
+include_config_on_deploy = true
+automatically_update_urls_on_dev = true
+
+[access_scopes]
+# One consistent permissions list - this must match SCOPES in your .env file
+scopes = "write_discounts,read_orders,read_customers,read_products,read_price_rules"
+
+[auth]
+redirect_urls = [
+  "https://the-deft-crew-production.up.railway.app/auth/callback",
+  "https://the-deft-crew-production.up.railway.app/auth/shopify/callback",
+  "https://the-deft-crew-production.up.railway.app/api/auth/callback"
+]
+
+[webhooks]
+api_version = "2026-07"
+
+[[webhooks.subscriptions]]
+topics = ["app/uninstalled"]
+uri = "/webhooks/app/uninstalled"
+
+[[webhooks.subscriptions]]
+topics = ["orders/create"]
+uri = "/webhooks/app/orders_create"
+
+[[webhooks.subscriptions]]
+topics = ["orders/updated"]
+uri = "/webhooks/app/orders_updated"
+
+[[webhooks.subscriptions]]
+topics = ["app/scopes_update"]
+uri = "/webhooks/app/scopes_update"
+
+[pos]
+embedded = false
