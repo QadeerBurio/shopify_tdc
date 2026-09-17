@@ -1,14 +1,13 @@
-// Fires when a brand removes the app from their store.
-// We delete their saved login session, we keep their order history.
 import type { ActionFunctionArgs } from "@remix-run/node";
-import { authenticate } from "../shopify.server";
-import db from "../db.server";
+import { authenticate, sessionStorage } from "../shopify.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
-  const { shop, session } = await authenticate.webhook(request);
+  const { shop, session, topic } = await authenticate.webhook(request);
+
+  console.log(`Received ${topic} webhook for ${shop}`);
 
   if (session) {
-    await db.session.deleteMany({ where: { shop } });
+    await sessionStorage.deleteSession(session.id);
   }
 
   return new Response();
