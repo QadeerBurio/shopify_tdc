@@ -4,7 +4,7 @@
 client_id = "f35cdba51cf047b59799f1f2d8551c19"
 name = "The Deft Crew"
 handle = "the-deft-crew"
-application_url = "https://the-deft-crew.myshopify.com"
+application_url = "https://shopifytdc-production.up.railway.app"
 embedded = true
 
 [build]
@@ -15,7 +15,7 @@ scopes = "write_discounts,read_orders,read_customers,read_products,read_price_ru
 
 [auth]
 redirect_urls = [
-  "https://shopifytdc-production.up.railway.app/auth/callback",
+ 
   "https://shopifytdc-production.up.railway.app/auth/shopify/callback",
   "https://shopifytdc-production.up.railway.app/api/auth/callback"
 ]
