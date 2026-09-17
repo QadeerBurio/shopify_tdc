@@ -8,13 +8,19 @@ datasource db {
 }
 
 model Session {
-  id        String   @id @default(auto()) @map("_id") @db.ObjectId
-  sessionId String   @unique
-  shop      String
-  state     String
-  isOnline  Boolean  @default(false)
-  scope     String?
-  expires   DateTime?
-  accessToken String
-  userId    String?  @db.String
+  id            String    @id @map("_id")
+  shop          String
+  state         String
+  isOnline      Boolean   @default(false)
+  scope         String?
+  expires       DateTime?
+  accessToken   String
+  userId        String?
+  firstName     String?
+  lastName      String?
+  email         String?
+  accountOwner  Boolean   @default(false)
+  locale        String?
+  collaborator  Boolean?  @default(false)
+  emailVerified Boolean?  @default(false)
 }
