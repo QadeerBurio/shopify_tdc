@@ -1,36 +1,38 @@
 // This screen lets a brand create a new discount code (which gets
 // created on their real Shopify store) and see the ones already made.
-// All the actual data (brands, discounts) lives in the existing backend,
-// not in a local database.
 import { useLoaderData, useActionData, Form } from "@remix-run/react";
 import { json, type LoaderFunctionArgs, type ActionFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import {
   Page, Layout, Card, Text, Button, IndexTable, Badge, FormLayout, TextField
 } from "@shopify/polaris";
-import { getPartnerByShop, saveDiscountToBackend } from "../services/partner.server";
+import db from "../db.server";
+import { getPartnerByShop } from "../services/partner.server";
 import { createShopifyDiscount } from "../services/discount.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const partner = await getPartnerByShop(session.shop);
 
-  try {
-    const partner = await getPartnerByShop(session.shop);
-    if (!partner) {
-      return json({ error: "Partner brand not configured", discounts: [] });
-    }
-    return json({ discounts: partner.discounts, error: null });
-  } catch (err) {
-    console.error("Discounts page: failed to reach backend:", err);
-    return json({
-      error: "Couldn't connect to the backend service.",
-      discounts: [],
-    });
+  if (!partner) {
+    return json({ error: "Partner brand not configured" }, { status: 404 });
   }
+
+  const rules = await db.discountRule.findMany({
+    where: { partnerBrandId: partner.id },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return json({ rules });
 };
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { session, admin } = await authenticate.admin(request);
+  const partner = await getPartnerByShop(session.shop);
+
+  if (!partner) {
+    return json({ error: "Partner brand not configured" }, { status: 404 });
+  }
 
   const formData = await request.formData();
   const code = formData.get("code") as string;
@@ -48,36 +50,28 @@ export const action = async ({ request }: ActionFunctionArgs) => {
       endsAt,
     });
 
-    await saveDiscountToBackend({
-      shop: session.shop,
-      code: shopifyDiscount.code,
-      discountType,
-      discountValue,
-      shopifyDiscountId: shopifyDiscount.id,
-      startsAt,
-      endsAt,
+    await db.discountRule.create({
+      data: {
+        partnerBrandId: partner.id,
+        shopifyDiscountId: shopifyDiscount.id,
+        shopifyCode: shopifyDiscount.code,
+        discountType,
+        discountValue,
+        startsAt: new Date(startsAt),
+        endsAt: endsAt ? new Date(endsAt) : null,
+        isActive: true,
+      },
     });
 
     return json({ success: true });
   } catch (error) {
-    console.error("Failed to create discount:", error);
     return json({ error: (error as Error).message }, { status: 400 });
   }
 };
 
 export default function Discounts() {
-  const { discounts, error } = useLoaderData<typeof loader>();
+  const { rules } = useLoaderData<typeof loader>();
   const actionData = useActionData<typeof action>();
-
-  if (error) {
-    return (
-      <Page title="Discount Rules">
-        <Card>
-          <Text as="p" tone="critical">{error}</Text>
-        </Card>
-      </Page>
-    );
-  }
 
   return (
     <Page title="Discount Rules">
@@ -96,9 +90,6 @@ export default function Discounts() {
                 <Button submit variant="primary">Create Discount</Button>
               </FormLayout>
             </Form>
-            {actionData?.error && (
-              <Text as="p" tone="critical">{actionData.error}</Text>
-            )}
           </Card>
         </Layout.Section>
 
@@ -107,7 +98,7 @@ export default function Discounts() {
             <Text as="h2" variant="headingMd">Active Rules</Text>
             <IndexTable
               resourceName={{ singular: "rule", plural: "rules" }}
-              itemCount={discounts.length}
+              itemCount={rules.length}
               headings={[
                 { title: "Code" },
                 { title: "Type" },
@@ -116,9 +107,9 @@ export default function Discounts() {
               ]}
               selectable={false}
             >
-              {discounts.map((rule, index) => (
-                <IndexTable.Row id={rule.code} key={rule.code} position={index}>
-                  <IndexTable.Cell>{rule.code}</IndexTable.Cell>
+              {rules.map((rule, index) => (
+                <IndexTable.Row id={rule.id} key={rule.id} position={index}>
+                  <IndexTable.Cell>{rule.shopifyCode}</IndexTable.Cell>
                   <IndexTable.Cell>{rule.discountType}</IndexTable.Cell>
                   <IndexTable.Cell>
                     {rule.discountType === "percentage"

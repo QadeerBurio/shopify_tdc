@@ -1,42 +1,47 @@
+// This is the first screen a brand sees when they open the app -
+// a summary of orders, revenue, and discounts from the last 30 days.
 import { useLoaderData } from "@remix-run/react";
 import { json, type LoaderFunctionArgs } from "@remix-run/node";
 import { authenticate } from "../shopify.server";
 import { Page, Layout, Card, Text, DataTable, Badge } from "@shopify/polaris";
+import { getPartnerRoi } from "../services/analytics.server";
 import { getPartnerByShop } from "../services/partner.server";
 
 export const loader = async ({ request }: LoaderFunctionArgs) => {
   const { session } = await authenticate.admin(request);
+  const partner = await getPartnerByShop(session.shop);
 
-  try {
-    const partner = await getPartnerByShop(session.shop);
-    if (!partner) {
-      return json({ error: "Partner brand not configured", partner: null });
-    }
-    return json({ partner, error: null });
-  } catch (err) {
-    console.error("Dashboard: failed to reach backend:", err);
-    return json({
-      error:
-        "Couldn't connect to the backend service. Check that BACKEND_API_URL is set correctly, and that the backend endpoints are live.",
-      partner: null,
-    });
+  if (!partner) {
+    return json({ error: "Partner brand not configured" }, { status: 404 });
   }
+
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const roi = await getPartnerRoi(partner.id, thirtyDaysAgo, now);
+
+  return json({
+    partner,
+    roi: {
+      ...roi,
+      periodStart: roi.periodStart.toISOString(),
+      periodEnd: roi.periodEnd.toISOString(),
+    },
+  });
 };
 
 export default function Dashboard() {
-  const { partner, error } = useLoaderData<typeof loader>();
+  const { partner, roi, error } = useLoaderData<typeof loader>();
 
-  if (error || !partner) {
+  if (error) {
     return (
       <Page title="The Deft Crew">
         <Card>
-          <Text as="p" tone="critical">{error ?? "No data available"}</Text>
+          <Text as="p" tone="critical">{error}</Text>
         </Card>
       </Page>
     );
   }
-
-  const { roi } = partner;
 
   const rows = [
     ["Total Orders", roi.totalOrders.toString()],
@@ -53,7 +58,7 @@ export default function Dashboard() {
         <Layout.Section>
           <Card>
             <Text as="h2" variant="headingMd">
-              ROI Summary
+              ROI Summary (Last 30 Days)
             </Text>
             <DataTable
               columnContentTypes={["text", "text"]}
