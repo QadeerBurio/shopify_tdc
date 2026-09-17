@@ -1,3 +1,9 @@
+import { webcrypto } from "node:crypto";
+if (!globalThis.crypto) {
+  // @ts-expect-error - polyfilling the global crypto object for this environment
+  globalThis.crypto = webcrypto;
+}
+
 import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
