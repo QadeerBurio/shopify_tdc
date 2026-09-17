@@ -18,11 +18,10 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ partner, error: null });
   } catch (err) {
     console.error("Dashboard: failed to reach backend:", err);
-    return json({
-      error:
-        "Couldn't connect to the backend service. Check that BACKEND_API_URL is set correctly, and that the backend endpoints are live.",
-      partner: null,
-    });
+   return json({
+  error: `Backend request failed: ${(err as Error).message}`,
+  partner: null,
+});
   }
 };
 

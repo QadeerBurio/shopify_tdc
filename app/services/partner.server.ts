@@ -35,7 +35,10 @@ export async function getPartnerByShop(shop: string): Promise<BackendBrand | nul
   );
 
   if (response.status === 404) return null;
-  if (!response.ok) throw new Error(`Backend brand lookup failed: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Backend brand lookup failed: ${response.status} ${body}`);
+  }
 
   return response.json();
 }
@@ -55,7 +58,10 @@ export async function saveDiscountToBackend(input: {
     body: JSON.stringify(input),
   });
 
-  if (!response.ok) throw new Error(`Backend discount save failed: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Backend discount save failed: ${response.status} ${body}`);
+  }
 }
 
 export async function forwardOrderToBackend(input: {
@@ -68,5 +74,8 @@ export async function forwardOrderToBackend(input: {
     body: JSON.stringify(input),
   });
 
-  if (!response.ok) throw new Error(`Backend order forward failed: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(`Backend order forward failed: ${response.status} ${body}`);
+  }
 }

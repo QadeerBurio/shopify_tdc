@@ -18,7 +18,7 @@ export const loader = async ({ request }: LoaderFunctionArgs) => {
     return json({ discounts: partner.discounts, error: null });
   } catch (err) {
     console.error("Discounts page: failed to reach backend:", err);
-    return json({ error: "Couldn't connect to the backend service.", discounts: [] });
+    return json({ error: `Backend request failed: ${(err as Error).message}`, discounts: [] });
   }
 };
 
