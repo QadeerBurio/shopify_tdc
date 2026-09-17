@@ -8,7 +8,7 @@ datasource db {
 }
 
 model Session {
-  id            String    @id
+  id            String    @id @map("_id")
   shop          String
   state         String
   isOnline      Boolean   @default(false)
