@@ -4,7 +4,7 @@
 client_id = "f35cdba51cf047b59799f1f2d8551c19"
 name = "The Deft Crew"
 handle = "the-deft-crew"
-application_url = "https://shopifytdc-production.up.railway.app"
+application_url = "https://the-deft-crew.myshopify.com"
 embedded = true
 
 [build]
