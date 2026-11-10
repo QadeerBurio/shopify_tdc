@@ -2,7 +2,7 @@
 
 client_id = "b33ceff9346edb323fd01bd6426d644e"
 name = "tdc"
-application_url = "https://shopifytdc-production.up.railway.app"
+application_url = "https://tdc-x-production.up.railway.app"
 embedded = true
 handle = "the-deft-crew-student-deals"
 
@@ -39,7 +39,7 @@ optional_scopes = [ ]
 use_legacy_install_flow = false
 
 [auth]
-redirect_urls = [ "https://app.gettdc.pk/auth/callback" ]
+redirect_urls = [ "https://tdc-x-production.up.railway.app/auth/callback" ]
 
 [pos]
 embedded = false
