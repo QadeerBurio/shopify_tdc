@@ -22,9 +22,10 @@ export default function App() {
   return (
     <div className={styles.index}>
       <div className={styles.content}>
-        <h1 className={styles.heading}>A short heading about [your app]</h1>
+        <h1 className={styles.heading}>tdc Student Deals</h1>
         <p className={styles.text}>
-          A tagline about [your app] that describes your value proposition.
+          Reach verified students on the tdc app (gettdc.pk) with exclusive
+          discount codes, and see exactly how much revenue they bring in.
         </p>
         {showForm && (
           <Form className={styles.form} method="post" action="/auth/login">
@@ -40,16 +41,18 @@ export default function App() {
         )}
         <ul className={styles.list}>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Create student discount codes</strong>. Set up percentage
+            or fixed-amount codes in your store and publish them to students on
+            the tdc app in a few clicks.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Track redemptions</strong>. Every order that uses a tdc
+            code is recorded automatically, so you can see which deals students
+            actually use.
           </li>
           <li>
-            <strong>Product feature</strong>. Some detail about your feature and
-            its benefit to your customer.
+            <strong>Measure ROI</strong>. View orders, revenue, discounts given
+            and average order value from student shoppers in one dashboard.
           </li>
         </ul>
       </div>

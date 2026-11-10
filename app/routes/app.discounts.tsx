@@ -28,6 +28,7 @@ import {
 import {
   getPartnerByShop,
   saveDiscountToBackendSafe,
+  type BackendDiscount,
 } from "../services/partner.server";
 import { createShopifyDiscount } from "../services/discount.server";
 
@@ -158,7 +159,11 @@ export const action = async ({ request }: ActionFunctionArgs) => {
 // COMPONENT
 // ============================================================
 export default function Discounts() {
-  const { discounts, error } = useLoaderData<typeof loader>();
+  const loaderData = useLoaderData<typeof loader>();
+  const error = loaderData.error;
+  // The error branches return an empty array literal, which widens the
+  // inferred type; every non-empty value comes from BackendDiscount[].
+  const discounts = loaderData.discounts as BackendDiscount[];
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
@@ -176,9 +181,9 @@ export default function Discounts() {
     );
   }
 
-  const fieldErrors =
+  const fieldErrors: Record<string, string | undefined> =
     actionData && "fieldErrors" in actionData
-      ? (actionData.fieldErrors ?? {})
+      ? ((actionData.fieldErrors ?? {}) as Record<string, string>)
       : {};
 
   const backendWarning =

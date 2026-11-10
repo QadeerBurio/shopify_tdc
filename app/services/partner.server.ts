@@ -271,3 +271,36 @@ export async function forwardOrderToBackend(input: {
     );
   }
 }
+
+// ============================================================
+// POST /api/shopify-app/compliance
+// Forwards mandatory GDPR compliance webhooks
+// (customers/data_request, customers/redact, shop/redact)
+// so the backend can export or erase the relevant data.
+// Throws on failure.
+// ============================================================
+export async function forwardComplianceToBackend(input: {
+  shop: string;
+  topic: string;
+  payload: unknown;
+}): Promise<void> {
+  const response = await fetchWithTimeout(
+    `${BACKEND_API_URL}/api/shopify-app/compliance`,
+    {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({
+        shop: input.shop,
+        topic: input.topic,
+        payload: input.payload,
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const body = await response.text().catch(() => "");
+    throw new Error(
+      `Backend compliance forward failed: ${response.status} ${body.slice(0, 200)}`
+    );
+  }
+}

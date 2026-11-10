@@ -9,7 +9,6 @@ import "@shopify/shopify-app-remix/adapters/node";
 import {
   ApiVersion,
   AppDistribution,
-  DeliveryMethod, // ✅ REQUIRED for the webhooks block below
   shopifyApp,
 } from "@shopify/shopify-app-remix/server";
 import { MongoDBSessionStorage } from "@shopify/shopify-app-session-storage-mongodb";
@@ -38,7 +37,7 @@ if (missing.length > 0) {
 // (avoids Prisma's _id-update restriction on MongoDB)
 // ------------------------------------------------------------
 const mongoSessionStorage = new MongoDBSessionStorage(
-  process.env.DATABASE_URL || "",
+  new URL(process.env.DATABASE_URL || ""),
   process.env.MONGODB_DB_NAME || "prisma"
 );
 
@@ -57,39 +56,15 @@ const scopes = (process.env.SCOPES || "")
 const shopify = shopifyApp({
   apiKey: process.env.SHOPIFY_API_KEY || "",
   apiSecretKey: process.env.SHOPIFY_API_SECRET || "",
-  apiVersion: ApiVersion.January25,
+  apiVersion: ApiVersion.July26,
   scopes,
   appUrl: process.env.SHOPIFY_APP_URL || "",
   authPathPrefix: "/auth",
   sessionStorage: mongoSessionStorage,
   distribution: AppDistribution.AppStore,
 
-  // ============================================================
-  // WEBHOOKS — Shopify POSTs here on order events.
-  // Each callbackUrl must map to a Remix route that exports
-  // `action` and calls `authenticate.webhook(request)`.
-  //
-  // Without this block, Shopify never sends webhooks to your app
-  // and the entire order → promo-code redemption flow breaks.
-  // ============================================================
-  webhooks: {
-    ORDERS_CREATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks/orders/create",
-    },
-    ORDERS_UPDATED: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks/orders/updated",
-    },
-    APP_UNINSTALLED: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks/app/uninstalled",
-    },
-    APP_SCOPES_UPDATE: {
-      deliveryMethod: DeliveryMethod.Http,
-      callbackUrl: "/webhooks/app/scopes_update",
-    },
-  },
+  // Webhook subscriptions (orders, app lifecycle, GDPR compliance)
+  // are declared in shopify.app.toml and registered by `shopify app deploy`.
 
   future: {
     unstable_newEmbeddedAuthStrategy: true,
@@ -102,7 +77,7 @@ const shopify = shopifyApp({
 });
 
 export default shopify;
-export const apiVersion = ApiVersion.January25;
+export const apiVersion = ApiVersion.July26;
 export const addDocumentResponseHeaders = shopify.addDocumentResponseHeaders;
 export const authenticate = shopify.authenticate;
 export const unauthenticated = shopify.unauthenticated;

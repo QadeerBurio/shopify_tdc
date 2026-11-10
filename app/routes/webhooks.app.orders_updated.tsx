@@ -1,4 +1,4 @@
-// app/routes/webhooks.orders.updated.tsx
+// app/routes/webhooks.app.orders_updated.tsx
 //
 // Shopify → Remix on order updates (refunds, cancellations, edits).
 // Best-effort: we forward to the backend, but we do NOT return 500
