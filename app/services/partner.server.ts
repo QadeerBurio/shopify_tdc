@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 // app/services/partner.server.ts
 // ------------------------------------------------------------
 // Client for the TDC backend. Every call is authenticated with
@@ -102,7 +104,7 @@ export async function getPartnerByShop(
 ): Promise<BackendBrand | null> {
   const response = await fetchWithTimeout(
     `${BACKEND_API_URL}/api/shopify-app/brand?shop=${encodeURIComponent(shop)}`,
-    { headers: authHeaders() }
+    { headers: authHeaders(), redirect: "error" }
   );
 
   if (response.status === 404) return null;
@@ -114,17 +116,21 @@ export async function getPartnerByShop(
     );
   }
 
-  return (await response.json()) as BackendBrand;
+  const brand = (await response.json()) as BackendBrand | null;
+  if (!brand?.id || !brand.brandName || !brand.roi || !Array.isArray(brand.discounts)) {
+    throw new Error("TDC brand response is incomplete");
+  }
+  return brand;
 }
 
 // ============================================================
 // POST /api/shopify-app/discount
 // Used when a merchant manually creates a discount in the embedded app.
-// Throws on failure. Use `saveDiscountToBackendSafe` if you don't want
-// to roll back a Shopify discount that was already created.
+// Requests are keyed by the shop and Shopify discount ID.
 // ============================================================
 export async function saveDiscountToBackend(input: {
   shop: string;
+  brandId: string;
   code: string;
   discountType: "percentage" | "fixed_amount";
   discountValue: number;
@@ -136,7 +142,13 @@ export async function saveDiscountToBackend(input: {
     `${BACKEND_API_URL}/api/shopify-app/discount`,
     {
       method: "POST",
-      headers: authHeaders({ "Content-Type": "application/json" }),
+      headers: authHeaders({
+        "Content-Type": "application/json",
+        "Idempotency-Key": createHash("sha256")
+          .update(JSON.stringify([input.shop, input.shopifyDiscountId]))
+          .digest("hex"),
+      }),
+      redirect: "error",
       body: JSON.stringify(input),
     }
   );
@@ -149,78 +161,33 @@ export async function saveDiscountToBackend(input: {
   }
 }
 
-// ============================================================
-// Safe wrapper — never throws, logs on failure.
-// Use this when the Shopify discount is already live and you
-// don't want to lose the merchant's work just because the
-// backend is temporarily unreachable.
-// ============================================================
-export async function saveDiscountToBackendSafe(input: {
-  shop: string;
-  code: string;
-  discountType: "percentage" | "fixed_amount";
-  discountValue: number;
-  shopifyDiscountId: string;
-  startsAt: string;
-  endsAt?: string;
-}): Promise<{ ok: boolean; error?: string }> {
-  try {
-    await saveDiscountToBackend(input);
-    return { ok: true };
-  } catch (err) {
-    const message = (err as Error).message;
-    console.error(
-      `[partner.server] saveDiscountToBackend (non-fatal) failed for code=${input.code}:`,
-      message
-    );
-    return { ok: false, error: message };
+// The TDC service owns sign-in, brand permissions, and the durable shop link.
+export async function startBrandConnection(shop: string): Promise<string | null> {
+  if (await getPartnerByShop(shop)) return null;
+  const backend = new URL(BACKEND_API_URL || "");
+  const allowedOrigin = new URL(process.env.TDC_CONNECT_ORIGIN || backend.origin);
+  if (backend.protocol !== "https:" || allowedOrigin.protocol !== "https:" || !SHOPIFY_APP_API_KEY) {
+    throw new Error("TDC connection is not configured");
   }
-}
 
-// ============================================================
-// POST /api/shopify-app/link-shop
-// Used to link a Shopify shop to a TDC brand after install.
-// Never throws — returns { success, brandId?, error? }.
-// ============================================================
-export async function linkShopToBrand(input: {
-  shop: string;
-  brandId?: string;
-  email?: string;
-}): Promise<{ success: boolean; brandId?: string; error?: string }> {
-  try {
-    const response = await fetchWithTimeout(
-      `${BACKEND_API_URL}/api/shopify-app/link-shop`,
-      {
-        method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(input),
-      }
-    );
-
-    const data = (await response.json().catch(() => ({}))) as {
-      success?: boolean;
-      brandId?: string;
-      error?: string;
-    };
-
-    if (!response.ok) {
-      console.warn(
-        `[partner.server] link-shop failed for ${input.shop}: ${response.status} ${data?.error || ""}`
-      );
-      return {
-        success: false,
-        error: data?.error || `HTTP ${response.status}`,
-      };
+  const response = await fetchWithTimeout(
+    new URL("/api/shopify-app/link-shop/start", backend).href,
+    {
+      method: "POST",
+      headers: authHeaders({ "Content-Type": "application/json" }),
+      body: JSON.stringify({ shop }),
+      redirect: "error",
     }
+  );
+  if (!response.ok) throw new Error(`TDC connection start failed: ${response.status}`);
 
-    return { success: true, brandId: data.brandId };
-  } catch (err) {
-    const message = (err as Error).message;
-    console.error(
-      `[partner.server] link-shop threw for ${input.shop}: ${message}`
-    );
-    return { success: false, error: message };
+  const { authorizationUrl } = await response.json();
+  const url = new URL(authorizationUrl);
+  if (url.origin !== allowedOrigin.origin || url.username || url.password) {
+    throw new Error("Unexpected TDC authorization URL");
   }
+
+  return url.href;
 }
 
 // ============================================================

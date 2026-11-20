@@ -9,6 +9,7 @@
 import type { ActionFunctionArgs } from "@remix-run/node";
 import { authenticate, sessionStorage } from "../shopify.server";
 import { forwardComplianceToBackend } from "../services/partner.server";
+import { deleteDiscountSyncHistory } from "../services/discount-sync.server";
 
 export const action = async ({ request }: ActionFunctionArgs) => {
   const { shop, topic, payload } = await authenticate.webhook(request);
@@ -23,6 +24,7 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         break;
 
       case "SHOP_REDACT": {
+        await deleteDiscountSyncHistory(shop);
         const sessions = await sessionStorage.findSessionsByShop(shop);
         if (sessions.length > 0) {
           await sessionStorage.deleteSessions(sessions.map((s) => s.id));
@@ -38,6 +40,10 @@ export const action = async ({ request }: ActionFunctionArgs) => {
         console.warn(`[webhooks.compliance] unexpected topic=${topic}`);
     }
   } catch (err) {
+    if (topic === "SHOP_REDACT") {
+      console.error("Shop data redaction failed:", err);
+      return new Response(null, { status: 500 });
+    }
     console.error(
       `[webhooks.compliance] handling ${topic} failed for ${shop}:`,
       (err as Error).message

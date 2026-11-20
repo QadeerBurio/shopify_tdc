@@ -26,3 +26,16 @@ model Session {
   refreshToken        String?
   refreshTokenExpires DateTime?
 }
+
+model DiscountSync {
+  id                String   @id @map("_id")
+  shop              String
+  brandId           String
+  code              String
+  discountValue     Float
+  startsAt          String
+  endsAt            String?
+  shopifyTag        String
+  shopifyDiscountId String?
+  syncedAt          DateTime?
+}

@@ -11,6 +11,7 @@ export interface CreateDiscountInput {
   endsAt?: string;
   usageLimit?: number;
   appliesOncePerCustomer?: boolean;
+  tags?: string[];
 }
 
 export async function createShopifyDiscount(
@@ -33,6 +34,7 @@ export async function createShopifyDiscount(
 
   const variables = {
     basicCodeDiscount: {
+      tags: input.tags,
       title: `TDC Partner Discount - ${input.code}`,
       code: input.code,
       startsAt: input.startsAt,
@@ -50,7 +52,7 @@ export async function createShopifyDiscount(
               : undefined,
           discountAmount:
             input.discountType === "fixed_amount"
-              ? { amount: input.discountValue, currencyCode: "USD" }
+              ? { amount: input.discountValue, appliesOnEachItem: false }
               : undefined,
         },
         items: {
@@ -70,18 +72,45 @@ export async function createShopifyDiscount(
   const response = await admin.graphql(mutation, { variables });
   const data = await response.json();
 
-  if (data.data?.discountCodeBasicCreate?.userErrors?.length > 0) {
+  const result = data.data?.discountCodeBasicCreate;
+  if (!result?.codeDiscountNode?.id || result.userErrors?.length) {
     throw new Error(
       `Shopify discount creation failed: ${JSON.stringify(
-        data.data.discountCodeBasicCreate.userErrors
+        result?.userErrors?.length ? result.userErrors : { status: response.status }
       )}`
     );
   }
 
   return {
-    id: data.data.discountCodeBasicCreate.codeDiscountNode.id,
+    id: result.codeDiscountNode.id,
     code: input.code,
   };
+}
+
+export async function findShopifyDiscount(admin: AdminApiContext, code: string) {
+  const response = await admin.graphql(
+    `#graphql
+      query TdcDiscountByCode($code: String!) {
+        codeDiscountNodeByCode(code: $code) {
+          id
+          codeDiscount {
+            ... on DiscountCodeBasic {
+              tags
+            }
+          }
+        }
+      }
+    `,
+    { variables: { code } }
+  );
+  const result = await response.json();
+  if (!response.ok || !result.data || !("codeDiscountNodeByCode" in result.data)) {
+    throw new Error("Could not check the discount in Shopify");
+  }
+  const discount = result.data.codeDiscountNodeByCode;
+  return discount
+    ? { id: discount.id as string, tags: (discount.codeDiscount.tags ?? []) as string[] }
+    : null;
 }
 
 export async function deleteShopifyDiscount(
